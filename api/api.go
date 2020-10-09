@@ -173,9 +173,9 @@ func getIndex(response http.ResponseWriter, request *http.Request) {
 			fmt.Fprintf(response, strconv.Itoa(i))
 			return
 		}
-		http.Error(response, errors.New("user doesn't exist").Error(), http.StatusBadRequest)
-		return
 	}
+	http.Error(response, errors.New("user doesn't exist").Error(), http.StatusBadRequest)
+	return
 }
 
 func getPassword(response http.ResponseWriter, request *http.Request) {
