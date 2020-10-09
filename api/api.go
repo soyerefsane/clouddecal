@@ -1,25 +1,29 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
+
+	"encoding/json"
+
 	"github.com/gorilla/mux"
 )
 
-
 //Declare a global array of Credentials
 //See credentials.go
+var users []Credentials = []Credentials{}
 
 /*YOUR CODE HERE*/
-
-
 
 func RegisterRoutes(router *mux.Router) error {
 
 	/*
 
-	Fill out the appropriate get methods for each of the requests, based on the nature of the request.
+		Fill out the appropriate get methods for each of the requests, based on the nature of the request.
 
-	Think about whether you're reading, writing, or updating for each request
+		Think about whether you're reading, writing, or updating for each request
 
 
 	*/
@@ -27,7 +31,7 @@ func RegisterRoutes(router *mux.Router) error {
 	router.HandleFunc("/api/getCookie", getCookie).Methods(http.MethodGet)
 	router.HandleFunc("/api/getQuery", getQuery).Methods(http.MethodGet)
 	router.HandleFunc("/api/getJSON", getJSON).Methods(http.MethodGet)
-	
+
 	router.HandleFunc("/api/signup", signup).Methods(http.MethodPost)
 	router.HandleFunc("/api/getIndex", getIndex).Methods(http.MethodGet)
 	router.HandleFunc("/api/getpw", getPassword).Methods(http.MethodGet)
@@ -46,6 +50,12 @@ func getCookie(response http.ResponseWriter, request *http.Request) {
 	*/
 
 	/*YOUR CODE HERE*/
+	cookie, err := request.Cookie("access_token")
+	if err != nil {
+		fmt.Fprintf(response, "")
+		return
+	}
+	fmt.Fprintf(response, cookie.Value)
 }
 
 func getQuery(response http.ResponseWriter, request *http.Request) {
@@ -56,6 +66,9 @@ func getQuery(response http.ResponseWriter, request *http.Request) {
 	*/
 
 	/*YOUR CODE HERE*/
+	id := request.URL.Query().Get("userID")
+	//it will return empty if it doesn't exist anyway
+	fmt.Fprint(response, id)
 }
 
 func getJSON(response http.ResponseWriter, request *http.Request) {
@@ -71,12 +84,26 @@ func getJSON(response http.ResponseWriter, request *http.Request) {
 		Decode this json file into an instance of Credentials.
 
 		Then, write the username and password to the response, separated by a newline.
-		
+
 		Make sure to error check! If there are any errors, call http.Error(), and pass in a "http.StatusBadRequest" What kind of errors can we expect here?
 	*/
 
 	/*YOUR CODE HERE*/
-	
+	credentials := Credentials{}
+	err := json.NewDecoder(request.Body).Decode(&credentials)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if credentials.Username == "" || credentials.Password == "" {
+		http.Error(response, errors.New("bad credentials").Error(), http.StatusBadRequest)
+		return
+	}
+	fmt.Fprintf(response, credentials.Username+"\n")
+	fmt.Fprintf(response, credentials.Password)
+
+	return
+
 }
 
 func signup(response http.ResponseWriter, request *http.Request) {
@@ -97,6 +124,18 @@ func signup(response http.ResponseWriter, request *http.Request) {
 	*/
 
 	/*YOUR CODE HERE*/
+	credentials := Credentials{}
+	err := json.NewDecoder(request.Body).Decode(&credentials)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if credentials.Username == "" || credentials.Password == "" {
+		http.Error(response, errors.New("bad credentials").Error(), http.StatusBadRequest)
+		return
+	}
+	users = append(users, credentials)
+	response.WriteHeader(201)
 }
 
 func getIndex(response http.ResponseWriter, request *http.Request) {
@@ -112,13 +151,31 @@ func getIndex(response http.ResponseWriter, request *http.Request) {
 		Decode this json file into an instance of Credentials. (What happens when we don't have all the fields? Does it matter in this case?)
 
 		Return the array index of the Credentials object in the global Credentials array
-		
+
 		The index will be of type integer, but we can only write strings to the response. What library and function was used to get around this?
 
 		Make sure to error check! If there are any errors, call http.Error(), and pass in a "http.StatusBadRequest" What kind of errors can we expect here?
 	*/
 
 	/*YOUR CODE HERE*/
+	credentials := Credentials{}
+	err := json.NewDecoder(request.Body).Decode(&credentials)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if credentials.Username == "" {
+		http.Error(response, errors.New("bad credentials").Error(), http.StatusBadRequest)
+		return
+	}
+	for i := 0; i < len(users); i++ {
+		if users[i].Username == credentials.Username {
+			fmt.Fprintf(response, strconv.Itoa(i))
+			return
+		}
+		http.Error(response, errors.New("user doesn't exist").Error(), http.StatusBadRequest)
+		return
+	}
 }
 
 func getPassword(response http.ResponseWriter, request *http.Request) {
@@ -139,9 +196,25 @@ func getPassword(response http.ResponseWriter, request *http.Request) {
 	*/
 
 	/*YOUR CODE HERE*/
+	credentials := Credentials{}
+	err := json.NewDecoder(request.Body).Decode(&credentials)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if credentials.Username == "" {
+		http.Error(response, errors.New("bad credentials").Error(), http.StatusBadRequest)
+		return
+	}
+	for i := 0; i < len(users); i++ {
+		if users[i].Username == credentials.Username {
+			fmt.Fprintf(response, users[i].Password)
+			return
+		}
+	}
+	http.Error(response, errors.New("user doesn't exist").Error(), http.StatusBadRequest)
+	return
 }
-
-
 
 func updatePassword(response http.ResponseWriter, request *http.Request) {
 
@@ -154,7 +227,7 @@ func updatePassword(response http.ResponseWriter, request *http.Request) {
 		}
 
 
-		Decode this json file into an instance of Credentials. 
+		Decode this json file into an instance of Credentials.
 
 		The password in the JSON file is the new password they want to replace the old password with.
 
@@ -164,6 +237,24 @@ func updatePassword(response http.ResponseWriter, request *http.Request) {
 	*/
 
 	/*YOUR CODE HERE*/
+	credentials := Credentials{}
+	err := json.NewDecoder(request.Body).Decode(&credentials)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if credentials.Username == "" || credentials.Password == "" {
+		http.Error(response, errors.New("bad credentials").Error(), http.StatusBadRequest)
+		return
+	}
+	for i := 0; i < len(users); i++ {
+		if users[i].Username == credentials.Username {
+			users[i].Password = credentials.Password
+			return
+		}
+	}
+	http.Error(response, errors.New("user doesn't exist").Error(), http.StatusBadRequest)
+	return
 }
 
 func deleteUser(response http.ResponseWriter, request *http.Request) {
@@ -189,4 +280,22 @@ func deleteUser(response http.ResponseWriter, request *http.Request) {
 	*/
 
 	/*YOUR CODE HERE*/
+	credentials := Credentials{}
+	err := json.NewDecoder(request.Body).Decode(&credentials)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if credentials.Username == "" {
+		http.Error(response, errors.New("bad credentials").Error(), http.StatusBadRequest)
+		return
+	}
+	for i := 0; i < len(users); i++ {
+		if users[i].Username == credentials.Username && users[i].Password == credentials.Password {
+			users = append(users[:i], users[i+1:]...)
+			return
+		}
+	}
+	http.Error(response, errors.New("user doesn't exist").Error(), http.StatusBadRequest)
+	return
 }
